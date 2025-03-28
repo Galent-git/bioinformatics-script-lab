@@ -1,0 +1,50 @@
+def filter_and_summarize_fastq(file_path, output_filtered, quality_threshold=30):
+    """
+    Filter FASTQ sequences by average quality and summarize key metrics.
+    
+    Parameters:
+      file_path: Path to the input FASTQ file.
+      output_filtered: Path to output filtered FASTQ file.
+      quality_threshold: Minimum average Phred quality required to keep a read.
+      
+    Returns:
+      A dictionary summarizing:
+        - total_reads
+        - filtered_reads (reads below threshold)
+        - kept_reads
+        - average_read_length
+        - average_quality
+    """
+    total_reads = 0
+    total_bases = 0
+    total_quality = 0
+    filtered_reads = 0
+    records_to_keep = []
+    
+    try:
+        for record in SeqIO.parse(file_path, "fastq"):
+            total_reads += 1
+            read_len = len(record.seq)
+            total_bases += read_len
+            avg_quality = sum(record.letter_annotations["phred_quality"]) / read_len
+            total_quality += avg_quality
+            if avg_quality >= quality_threshold:
+                records_to_keep.append(record)
+            else:
+                filtered_reads += 1
+
+        with open(output_filtered, "w") as out_handle:
+            SeqIO.write(records_to_keep, out_handle, "fastq")
+        
+        summary = {
+            "total_reads": total_reads,
+            "filtered_reads": filtered_reads,
+            "kept_reads": len(records_to_keep),
+            "average_read_length": total_bases / total_reads if total_reads > 0 else 0,
+            "average_quality": total_quality / total_reads if total_reads > 0 else 0
+        }
+        print(f"Processed {file_path}: {summary}")
+        return summary
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return None
